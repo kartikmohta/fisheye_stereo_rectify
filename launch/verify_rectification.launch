@@ -1,0 +1,11 @@
+<launch>
+  <include file="$(find fisheye_stereo_rectify)/launch/rectify.launch"/>
+
+  <node pkg="fisheye_stereo_rectify"
+    type="verify_rectification"
+    name="verify_rectification"
+    output="screen">
+    <remap from="~left_image" to="left/image_rect"/>
+    <remap from="~right_image" to="right/image_rect"/>
+  </node>
+</launch>

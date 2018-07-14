@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+import rospy
+import message_filters
+from sensor_msgs.msg import Image
+import numpy as np
+from cv_bridge import CvBridge
+import cv2
+
+class CompareRectify:
+    def __init__(self):
+        self.bridge = CvBridge()
+        self.num_lines = rospy.get_param('~num_lines', 10)
+        self.combined_image_pub = rospy.Publisher('~combined_image', Image, queue_size=2)
+        self.left_image_sub = message_filters.Subscriber('~left_image', Image)
+        self.right_image_sub = message_filters.Subscriber('~right_image', Image)
+        self.ts = message_filters.TimeSynchronizer([self.left_image_sub, self.right_image_sub], 10)
+        self.ts.registerCallback(self.callback)
+
+    def callback(self, left_image_msg, right_image_msg):
+        left_image = self.bridge.imgmsg_to_cv2(left_image_msg, "mono8")
+        right_image = self.bridge.imgmsg_to_cv2(right_image_msg, "mono8")
+        if left_image.shape == right_image.shape:
+            combined_image = np.concatenate((left_image, right_image), axis=1)
+            vis = cv2.cvtColor(combined_image, cv2.COLOR_GRAY2BGR)
+            (rows,cols) = left_image.shape
+            for i in range(self.num_lines):
+                draw_row = int(rows / (self.num_lines + 1) * (i + 1))
+                cv2.line(vis,(0, draw_row),(cols*2,draw_row),(0,255,0),1)
+            self.combined_image_pub.publish(self.bridge.cv2_to_imgmsg(vis, "bgr8"))
+        else:
+            rospy.log_warn('Left and right images are not the same shape')
+
+
+def main():
+    rospy.init_node('compare_rectify')
+    compare_rectify = CompareRectify()
+    rospy.spin()
+
+if __name__ == '__main__':
+    main()
